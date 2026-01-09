@@ -12,9 +12,8 @@ resource "aws_apigatewayv2_api" "this" {
 resource "aws_apigatewayv2_integration" "lambda" {
   api_id           = aws_apigatewayv2_api.this.id
   integration_type = "AWS_PROXY"
-  integration_method = "POST"
   payload_format_version = "2.0"
-  target = var.function_arn
+  integration_uri = var.function_arn
 }
 
 resource "aws_apigatewayv2_route" "routes" {
