@@ -61,7 +61,11 @@ data "aws_iam_policy_document" "test_serverless_app" {
       "iam:UpdateRole",
       "iam:PassRole",
       "iam:List*Role*",
-      "iam:Get*Role*"
+      "iam:Get*Role*",
+      "iam:PutRolePolicy",           # ← AJOUTER
+      "iam:DeleteRolePolicy",        # ← AJOUTER
+      "iam:AttachRolePolicy",        # ← AJOUTER
+      "iam:DetachRolePolicy"         # ← AJOUTER
     ]
     resources = ["arn:aws:iam::*:role/${var.lambda_base_name}*"]
   }
@@ -238,7 +242,11 @@ data "aws_iam_policy_document" "apply_serverless_app" {
       "iam:UpdateRole",
       "iam:PassRole",
       "iam:List*Role*",
-      "iam:Get*Role*"
+      "iam:Get*Role*",
+      "iam:PutRolePolicy",           # ← AJOUTER
+      "iam:DeleteRolePolicy",        # ← AJOUTER
+      "iam:AttachRolePolicy",        # ← AJOUTER
+      "iam:DetachRolePolicy"         # ← AJOUTER
     ]
     resources = ["arn:aws:iam::*:role/${var.lambda_base_name}*"]
   }
