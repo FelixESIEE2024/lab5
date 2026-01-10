@@ -3,8 +3,9 @@ provider "aws" {
 }
 
 module "state" {
-  source = "github.com/brikis98/devops-book//ch5/tofu/modules/state-bucket"
+  # On utilise le module local pour créer le bucket S3 et la table DynamoDB
+  source = "github.com/FelixESIEE2024/lab5//scripts/tofu/modules/state-bucket"
 
-  # TODO: fill in your own bucket name!
-  name = "fundamentals-of-devops-tofu-state"
+  # On personnalise le nom pour qu'il soit unique
+  name = "devops-td5-tofu-state-felix-test-depuis-git"
 }

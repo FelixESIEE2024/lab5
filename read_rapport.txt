@@ -1,0 +1,18 @@
+Étape 1: On vérifie les modules et la config live.
+On voit que le module state-bucket local est prêt et que le backend.tf a des valeurs à personnaliser.
+
+Étape 2: On remplit les backends S3/DynamoDB.
+On met le bucket et la table sur "devops-td5-tofu-state-conqu-20260110" et des clés de state uniques.
+
+Étape 3: On déploie le backend distant.
+On a créé le bucket S3 et la table DynamoDB avec tofu init/apply sans backend.
+On voit les outputs avec le même nom pour le bucket et la table.
+
+Étape 4: On active le backend S3.
+On a reconfiguré le backend S3 et migré l’état local automatiquement vers S3.
+
+Explication (création du bucket):
+On importe le module `state-bucket` dans le dossier live `scripts/tofu/live/tofu-state`.
+On lance `tofu init` puis `tofu apply`: ça crée le bucket S3 et la table DynamoDB.
+Ensuite, on remplit `backend.tf` pour pointer sur ce bucket/table et on fait `tofu init -migrate-state`.
+On voit les noms créés dans les outputs et on utilise le même nom pour tous les backends.

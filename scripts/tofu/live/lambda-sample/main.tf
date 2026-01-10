@@ -3,8 +3,8 @@ provider "aws" {
 }
 
 module "function" {
-  source = "github.com/brikis98/devops-book//ch3/tofu/modules/lambda"
-
+  #source = "github.com/brikis98/devops-book//ch3/tofu/modules/lambda"
+  source = "github.com/FelixESIEE2024/lab5//td5/scripts/tofu/modules/lambda"
   name = var.name
 
   src_dir = "${path.module}/src"
@@ -20,8 +20,8 @@ module "function" {
 }
 
 module "gateway" {
-  source = "github.com/brikis98/devops-book//ch3/tofu/modules/api-gateway"
-
+  #source = "github.com/brikis98/devops-book//ch3/tofu/modules/api-gateway"
+  source = "github.com/FelixESIEE2024/lab5//td5/scripts/tofu/modules/api-gateway"
   name = var.name
   function_arn       = module.function.function_arn
   api_gateway_routes = ["GET /"]
