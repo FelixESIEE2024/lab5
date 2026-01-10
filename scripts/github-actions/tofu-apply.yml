@@ -29,7 +29,8 @@ jobs:
 
       - name: tofu apply                                                     
         id: apply
-        working-directory: ch5/tofu/live/lambda-sample
+        #working-directory: ch5/tofu/live/lambda-sample
+        working-directory: td5/scripts/tofu/live/lambda-sample
         run: |
           tofu init -no-color -input=false
           tofu apply -no-color -input=false -lock-timeout=60m -auto-approve
