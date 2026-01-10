@@ -19,7 +19,7 @@ run "validate" {
   }
 
   assert {
-    condition     = data.http.test_endpoint.response_body == "test félix"
+    condition     = data.http.test_endpoint.response_body == "AAAAAtestee félix"
     error_message = "Unexpected body: ${data.http.test_endpoint.response_body}"
   }
 }
