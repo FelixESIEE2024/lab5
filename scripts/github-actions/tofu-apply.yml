@@ -2,7 +2,11 @@ name: Tofu Apply
 on:
   push:                                                                      
     branches: ["main"]
-    paths: ["ch5/tofu/live/lambda-sample/**"]
+    paths: ["td5/scripts/tofu/live/lambda-sample/**"] #ici aussi 
+
+
+
+
 jobs:
   apply:
     name: "Tofu Apply"
@@ -16,8 +20,8 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v3
         with:
-          # TODO: fill in your IAM role ARN!
-          role-to-assume: arn:aws:iam::111111111111:role/lambda-sample-apply 
+          
+          role-to-assume: arn:aws:iam::994077996150:role/lambda-sample-apply #j'ai rempli ici 
           role-session-name: apply-${{ github.run_number }}-${{ github.actor }}
           aws-region: us-east-2
 
