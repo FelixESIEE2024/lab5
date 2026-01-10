@@ -56,16 +56,13 @@ data "aws_iam_policy_document" "test_serverless_app" {
     sid    = "IamPermissions"
     effect = "Allow"
     actions = [
+      "iam:PutRolePolicy",
+      "iam:GetRole",
       "iam:CreateRole",
       "iam:DeleteRole",
-      "iam:UpdateRole",
-      "iam:PassRole",
-      "iam:List*Role*",
-      "iam:Get*Role*",
-      "iam:PutRolePolicy",           # ← AJOUTER
-      "iam:DeleteRolePolicy",        # ← AJOUTER
-      "iam:AttachRolePolicy",        # ← AJOUTER
-      "iam:DetachRolePolicy"         # ← AJOUTER
+      "iam:AttachRolePolicy",
+      "iam:DetachRolePolicy",
+      "iam:PassRole"
     ]
     resources = ["arn:aws:iam::*:role/${var.lambda_base_name}*"]
   }
