@@ -10,27 +10,34 @@ jobs:
     name: "Detect Changed Modules"
     runs-on: ubuntu-latest
     outputs:
-      changed-dirs: ${{ steps.changed-dirs.outputs.all_changed_files }}
-      any-changed: ${{ steps.changed-dirs.outputs.any_changed }}
+      modules: ${{ steps.set-modules.outputs.modules }}
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 2
 
-      - name: Get changed directories
-        id: changed-dirs
+      - name: Get changed files
+        id: changed-files
         uses: tj-actions/changed-files@v41
         with:
           files: scripts/tofu/live/**/*.tf
-          dir_names: true
-          dir_names_max_depth: 4
-          json: true
+
+      - name: Extract module directories
+        id: set-modules
+        run: |
+          CHANGED_FILES="${{ steps.changed-files.outputs.all_changed_files }}"
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "modules=[]" >> $GITHUB_OUTPUT
+          else
+            MODULES=$(echo "$CHANGED_FILES" | tr ' ' '\n' | grep -o 'scripts/tofu/live/[^/]*' | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            echo "modules=$MODULES" >> $GITHUB_OUTPUT
+          fi
 
   plan:
     name: "Tofu Plan"
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: needs.detect-changes.outputs.any-changed == 'true'
+    if: needs.detect-changes.outputs.modules != '[]'
     permissions:
       pull-requests: write
       id-token: write
@@ -49,16 +56,12 @@ jobs:
       - name: Run tofu plan on changed modules
         id: plan
         run: |
-          CHANGED_DIRS='${{ needs.detect-changes.outputs.changed-dirs }}'
-          echo "Changed directories: $CHANGED_DIRS"
+          MODULES='${{ needs.detect-changes.outputs.modules }}'
+          echo "Modules to plan: $MODULES"
           
-          # Extract unique module directories (scripts/tofu/live/*)
-          MODULES=$(echo $CHANGED_DIRS | jq -r '.[]' | grep -o 'scripts/tofu/live/[^/]*' | sort -u)
-          
-          PLAN_OUTPUT=""
           EXIT_CODE=0
           
-          for MODULE in $MODULES; do
+          echo "$MODULES" | jq -r '.[]' | while read MODULE; do
             echo "::group::Planning $MODULE"
             cd $GITHUB_WORKSPACE/$MODULE
             
@@ -78,8 +81,6 @@ jobs:
             
             echo "::endgroup::"
           done
-          
-          exit $EXIT_CODE
 
       - uses: peter-evans/create-or-update-comment@v4
         if: always()
