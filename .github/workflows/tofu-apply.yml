@@ -6,44 +6,21 @@ on:
     paths: ["scripts/tofu/live/**/*.tf"]
 
 jobs:
-  detect-changes:
-    name: "Detect Changed Modules"
-    runs-on: ubuntu-latest
-    outputs:
-      modules: ${{ steps.set-modules.outputs.modules }}
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 2
-
-      - name: Get changed files
-        id: changed-files
-        uses: tj-actions/changed-files@v41
-        with:
-          files: scripts/tofu/live/**/*.tf
-
-      - name: Extract module directories
-        id: set-modules
-        run: |
-          CHANGED_FILES="${{ steps.changed-files.outputs.all_changed_files }}"
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "modules=[]" >> $GITHUB_OUTPUT
-          else
-            MODULES=$(echo "$CHANGED_FILES" | tr ' ' '\n' | grep -o 'scripts/tofu/live/[^/]*' | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
-            echo "modules=$MODULES" >> $GITHUB_OUTPUT
-          fi
-
   apply:
     name: "Tofu Apply"
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.modules != '[]'
     permissions:
       pull-requests: write
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
 
       - uses: aws-actions/configure-aws-credentials@v3
         with:
@@ -53,33 +30,21 @@ jobs:
 
       - uses: opentofu/setup-opentofu@v1
 
-      - name: Run tofu apply on changed modules
+      - name: Run Tofu Apply
         id: apply
         run: |
-          MODULES='${{ needs.detect-changes.outputs.modules }}'
-          echo "Modules to apply: $MODULES"
+          DIRS=$(echo "${{ steps.changed-files.outputs.all_modified_files }}" | tr ' ' '\n' | grep 'scripts/tofu/live' | xargs -n1 dirname | sort -u)
           
-          EXIT_CODE=0
-          
-          echo "$MODULES" | jq -r '.[]' | while read MODULE; do
-            echo "::group::Applying $MODULE"
-            cd $GITHUB_WORKSPACE/$MODULE
-            
-            echo "## 📁 Module: $MODULE" >> $GITHUB_STEP_SUMMARY
-            
-            if tofu init -no-color -input=false; then
-              if tofu apply -no-color -input=false -lock-timeout=60m -auto-approve; then
-                echo "✅ Apply succeeded for $MODULE" >> $GITHUB_STEP_SUMMARY
-              else
-                echo "❌ Apply failed for $MODULE" >> $GITHUB_STEP_SUMMARY
-                EXIT_CODE=1
-              fi
+          for dir in $DIRS; do
+            if ls $dir/*.tf 1> /dev/null 2>&1; then
+              echo "::group::Applying $dir"
+              cd $GITHUB_WORKSPACE/$dir
+              tofu init -no-color -input=false
+              tofu apply -no-color -input=false -lock-timeout=60m -auto-approve
+              echo "::endgroup::"
             else
-              echo "❌ Init failed for $MODULE" >> $GITHUB_STEP_SUMMARY
-              EXIT_CODE=1
+              echo "No .tf files in $dir, skipping..."
             fi
-            
-            echo "::endgroup::"
           done
 
       - uses: jwalton/gh-find-current-pr@master
@@ -96,6 +61,6 @@ jobs:
           body: |
             ## ${{ env.RESULT_EMOJI }} Tofu Apply Results
             
-            Executed apply on modules with changed `.tf` files.
+            Executed apply on changed modules.
             
-            See workflow summary for detailed output.
+            See workflow run for detailed output.
