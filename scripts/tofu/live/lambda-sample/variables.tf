@@ -1,5 +1,5 @@
 variable "name" {
-  description = "The base name for the Lambda function and all related resources"
+  description = "Base name for the Lambda function and all related AWS resources"
   type        = string
   default     = "lambda-sample"
 }
