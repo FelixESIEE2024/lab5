@@ -12,7 +12,7 @@ module "function" {
   handler = "index.handler"
 
   memory_size = 128
-  timeout     = 5
+  timeout     = 10
 
   environment_variables = {
     NODE_ENV = "production"
