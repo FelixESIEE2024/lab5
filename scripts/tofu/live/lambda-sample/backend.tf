@@ -1,5 +1,3 @@
-
-
 terraform {
  	backend "s3" {
  		bucket         = "devops-td5-tofu-state-felix-test-depuis-git"
