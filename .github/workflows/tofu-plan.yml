@@ -1,9 +1,9 @@
-name: Tofu Plan
+name: Tofu Plan ########################""
 
 on:
   pull_request:
     branches: ["main"]
-    paths: ["scripts/tofu/live/**/*.tf"]
+    paths: ["scripts/tofu/live/**/*.tf"] #
 
 jobs:
   plan:
