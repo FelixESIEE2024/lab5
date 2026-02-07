@@ -3,24 +3,67 @@ name: Tofu Plan
 on:
   pull_request:
     branches: ["main"]
-    paths: ["scripts/tofu/live/**/*.tf"]
+    paths: ["scripts/tofu/live/**"]  # Détecte tous les dossiers OpenTofu
 
 jobs:
+  # Job 1 : Détecter les dossiers modifiés
+  detect-changes:
+    name: "Détecter les dossiers modifiés"
+    runs-on: ubuntu-latest
+    outputs:
+      directories: ${{ steps.set-matrix.outputs.directories }}
+      any_changed: ${{ steps.changed-files.outputs.any_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Nécessaire pour détecter les changements
+
+      - name: Détecter les fichiers modifiés
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: scripts/tofu/live/**
+          
+      - name: Construire la liste des dossiers modifiés
+        id: set-matrix
+        run: |
+          # Extraire les dossiers uniques à partir des fichiers modifiés
+          DIRS=$(echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | grep 'scripts/tofu/live' | xargs -n1 dirname | sort -u)
+          
+          # Convertir en JSON pour la matrix
+          JSON="["
+          FIRST=true
+          for dir in $DIRS; do
+            if [ -d "$dir" ] && ls $dir/*.tf 1> /dev/null 2>&1; then
+              if [ "$FIRST" = true ]; then
+                FIRST=false
+              else
+                JSON+=","
+              fi
+              JSON+="\"$dir\""
+            fi
+          done
+          JSON+="]"
+          
+          echo "directories=$JSON" >> $GITHUB_OUTPUT
+          echo "Dossiers détectés: $JSON"
+
+  # Job 2 : Exécuter tofu plan pour chaque dossier modifié
   plan:
-    name: "Tofu Plan"
+    name: "Tofu Plan (${{ matrix.directory }})"
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any_changed == 'true'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
       id-token: write
       contents: read
+    strategy:
+      matrix:
+        directory: ${{ fromJSON(needs.detect-changes.outputs.directories) }}
+      fail-fast: false  # Continue même si un dossier échoue
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Get changed files
-        id: changed-files
-        uses: tj-actions/changed-files@v45
 
       - uses: aws-actions/configure-aws-credentials@v3
         with:
@@ -30,22 +73,12 @@ jobs:
 
       - uses: opentofu/setup-opentofu@v1
 
-      - name: Run Tofu Plan
+      - name: tofu plan
         id: plan
+        working-directory: ${{ matrix.directory }}  # Utilise le dossier de la matrix
         run: |
-          DIRS=$(echo "${{ steps.changed-files.outputs.all_modified_files }}" | tr ' ' '\n' | grep 'scripts/tofu/live' | xargs -n1 dirname | sort -u)
-          
-          for dir in $DIRS; do
-            if ls $dir/*.tf 1> /dev/null 2>&1; then
-              echo "::group::Planning $dir"
-              cd $GITHUB_WORKSPACE/$dir
-              tofu init -no-color -input=false
-              tofu plan -no-color -input=false -lock=false
-              echo "::endgroup::"
-            else
-              echo "No .tf files in $dir, skipping..."
-            fi
-          done
+          tofu init -no-color -input=false
+          tofu plan -no-color -input=false -lock=false
 
       - uses: peter-evans/create-or-update-comment@v4
         if: always()
@@ -54,8 +87,5 @@ jobs:
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body: |
-            ## ${{ env.RESULT_EMOJI }} Tofu Plan Results
-            
-            Executed plan on changed modules.
-            
-            See workflow run for detailed output.
+            ## ${{ env.RESULT_EMOJI }} `tofu plan` output pour `${{ matrix.directory }}`
+            ```${{ steps.plan.outputs.stdout }}```

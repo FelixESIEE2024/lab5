@@ -1,3 +1,4 @@
+# Test de détection multi-dossiers - modification ci-cd-permissions
 provider "aws" {
   region = "us-east-2"
 }

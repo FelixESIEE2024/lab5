@@ -1,44 +1,69 @@
 name: Tofu Plan
 
 on:
-  pull_request:                                                             
+  pull_request:
     branches: ["main"]
-    paths: ["td5/scripts/tofu/live/lambda-sample/**"] #ici aussi 
+    paths: ["td5/scripts/tofu/live/**"]  # Détecte tous les dossiers OpenTofu
 
 jobs:
+  # Job 1 : Détecter les dossiers modifiés
+  detect-changes:
+    name: "Détecter les dossiers modifiés"
+    runs-on: ubuntu-latest
+    outputs:
+      directories: ${{ steps.changed-dirs.outputs.all_changed_files }}
+      any_changed: ${{ steps.changed-dirs.outputs.any_changed }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Nécessaire pour détecter les changements
+
+      - name: Détecter les dossiers OpenTofu modifiés
+        id: changed-dirs
+        uses: tj-actions/changed-files@v44
+        with:
+          files: td5/scripts/tofu/live/**/  # Cherche les changements dans tous les sous-dossiers
+          dir_names: true                    # Retourne les noms de dossiers, pas les fichiers
+          json: true                         # Format JSON pour la matrix
+
+  # Job 2 : Exécuter tofu plan pour chaque dossier modifié
   plan:
-    name: "Tofu Plan"
+    name: "Tofu Plan (${{ matrix.directory }})"
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any_changed == 'true'
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write                                                  
+      pull-requests: write
       id-token: write
       contents: read
+    strategy:
+      matrix:
+        directory: ${{ fromJSON(needs.detect-changes.outputs.directories) }}
+      fail-fast: false  # Continue même si un dossier échoue
     steps:
       - uses: actions/checkout@v2
 
       - uses: aws-actions/configure-aws-credentials@v3
         with:
-
-          role-to-assume: arn:aws:iam::994077996150:role/lambda-sample-plan #ici je remplis aussi  
+          role-to-assume: arn:aws:iam::994077996150:role/lambda-sample-plan
           role-session-name: plan-${{ github.run_number }}-${{ github.actor }}
           aws-region: us-east-2
 
       - uses: opentofu/setup-opentofu@v1
 
-      - name: tofu plan                                                     
+      - name: tofu plan
         id: plan
-        #working-directory: ch5/tofu/live/lambda-sample
-        working-directory: td5/scripts/tofu/live/lambda-sample
+        working-directory: ${{ matrix.directory }}  # Utilise le dossier de la matrix
         run: |
           tofu init -no-color -input=false
           tofu plan -no-color -input=false -lock=false
 
-      - uses: peter-evans/create-or-update-comment@v4                       
+      - uses: peter-evans/create-or-update-comment@v4
         if: always()
         env:
           RESULT_EMOJI: ${{ steps.plan.outcome == 'success' && '✅' || '⚠️' }}
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body: |
-            ## ${{ env.RESULT_EMOJI }} `tofu plan` output
+            ## ${{ env.RESULT_EMOJI }} `tofu plan` output pour `${{ matrix.directory }}`
             ```${{ steps.plan.outputs.stdout }}```
