@@ -11,20 +11,42 @@ jobs:
     name: "Détecter les dossiers modifiés"
     runs-on: ubuntu-latest
     outputs:
-      directories: ${{ steps.changed-dirs.outputs.all_changed_files }}
-      any_changed: ${{ steps.changed-dirs.outputs.any_changed }}
+      directories: ${{ steps.set-matrix.outputs.directories }}
+      any_changed: ${{ steps.changed-files.outputs.any_changed }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Nécessaire pour comparer avec le commit précédent
 
-      - name: Détecter les dossiers OpenTofu modifiés
-        id: changed-dirs
+      - name: Détecter les fichiers modifiés
+        id: changed-files
         uses: tj-actions/changed-files@v45
         with:
-          files: scripts/tofu/live/**/  # Cherche les changements dans tous les sous-dossiers
-          dir_names: true                # Retourne les noms de dossiers, pas les fichiers
-          json: true                     # Format JSON pour la matrix
+          files: scripts/tofu/live/**
+          
+      - name: Construire la liste des dossiers modifiés
+        id: set-matrix
+        run: |
+          # Extraire les dossiers uniques à partir des fichiers modifiés
+          DIRS=$(echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | grep 'scripts/tofu/live' | xargs -n1 dirname | sort -u)
+          
+          # Convertir en JSON pour la matrix
+          JSON="["
+          FIRST=true
+          for dir in $DIRS; do
+            if [ -d "$dir" ] && ls $dir/*.tf 1> /dev/null 2>&1; then
+              if [ "$FIRST" = true ]; then
+                FIRST=false
+              else
+                JSON+=","
+              fi
+              JSON+="\"$dir\""
+            fi
+          done
+          JSON+="]"
+          
+          echo "directories=$JSON" >> $GITHUB_OUTPUT
+          echo "Dossiers détectés: $JSON"
 
   # Job 2 : Exécuter tofu apply pour chaque dossier modifié
   apply:
